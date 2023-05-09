@@ -31,6 +31,7 @@ public class Board extends Timestamped{
     @Column(nullable = false)
     private String category;
 
+    @Column
     @Lob
     private String image;
 
@@ -66,7 +67,6 @@ public class Board extends Timestamped{
         this.title = boardRequestDto.getTitle();
         this.contents = boardRequestDto.getContents();
         this.category = boardRequestDto.getCategory();
-        this.image = boardRequestDto.getImage();
     }
 
     public void addUser(User user){

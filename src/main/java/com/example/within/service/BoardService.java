@@ -9,6 +9,7 @@ import com.example.within.exception.ExceptionEnum;
 import com.example.within.repository.BoardRepository;
 import com.example.within.repository.EmotionRepository;
 import com.example.within.repository.UserRepository;
+import com.example.within.util.S3Uploader;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -16,6 +17,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
 
 @Service
 @RequiredArgsConstructor
@@ -23,9 +27,12 @@ public class BoardService {
     private final BoardRepository boardRepository;
     private final UserRepository userRepository;
     private final EmotionRepository emotionRepository;
+    private final S3Uploader s3Uploader;
 
     @Transactional
-    public ResponseEntity<?> create(BoardRequestDto boardRequestDto, User user) {
+    public ResponseEntity<?> create(BoardRequestDto boardRequestDto,
+                                    User user,
+                                    MultipartFile imageFile) throws IOException{
         Board board = new Board(boardRequestDto);
 
         //ADMIN 확인
@@ -34,7 +41,12 @@ public class BoardService {
         // 유저 아이디 추가
         board.addUser(user);
 
+        if(!imageFile.isEmpty()){
+            String storedFileName = s3Uploader.upload(imageFile);
+            board.setImage(storedFileName);
+        }
         boardRepository.save(board);
+
         return new ResponseEntity<>(BasicResponseDto.addSuccess(StatusCode.OK.getStatusCode(), "게시글을 작성하였습니다."), HttpStatus.OK);
     }
 
@@ -55,12 +67,21 @@ public class BoardService {
     }
 
     @Transactional
-    public ResponseEntity<?> update(Long boardId, BoardRequestDto boardRequestDto, User user) {
+    public ResponseEntity<?> update(Long boardId,
+                                    BoardRequestDto boardRequestDto,
+                                    User user,
+                                    MultipartFile imageFile) throws IOException {
         // 게시글 존재여부 확인
         Board board = existBoard(boardId);
 
         // 작성자 게시글 체크
         isBoardUser(user, board);
+
+        if(!imageFile.isEmpty()){
+            s3Uploader.delete(board.getImage());
+            String storedFileName = s3Uploader.upload(imageFile);
+            board.setImage(storedFileName);
+        }
         board.update(boardRequestDto);
         return new ResponseEntity<>(BasicResponseDto.addSuccess(StatusCode.OK.getStatusCode(), "게시글을 수정하였습니다."), HttpStatus.OK);
     }
@@ -84,7 +105,6 @@ public class BoardService {
         Emotion toEmotion = new Emotion(board, null, user, emotion);
         Emotion existingEmotion = emotionRepository.findByBoardIdAndUserIdAndEmotion(boardId, user.getId(), emotion);
 
-        BasicResponseDto basicResponseDto;
         String message;
         long emotionCnt;
 

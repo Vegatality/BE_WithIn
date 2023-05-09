@@ -1,6 +1,6 @@
 package com.example.within.util;
 
-import com.example.within.Security.UserDetailsServiceImpl;
+import com.example.within.security.UserDetailsServiceImpl;
 import com.example.within.entity.UserRoleEnum;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
@@ -51,12 +51,13 @@ public class JwtUtil {
         return null;
     }
 
-    public String createToken(String userName, String email, UserRoleEnum userRoleEnum){
+    public String createToken(Long id, String userName, String email, UserRoleEnum userRoleEnum){
         Date date = new Date();
 
         return BEARER_PREFIX + Jwts.builder()
                 .setSubject(email)
                 .claim(AUTHORIZATION_KEY, userRoleEnum)
+                .claim("userId", id)
                 .claim("username", userName)
                 .setExpiration(new Date(date.getTime() + TOKEN_TIME))
                 .setIssuedAt(date)
